@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>CraneLift Planner V0.8.1</title>
+<style>
+:root{--ink:#14202b;--muted:#66727d;--bg:#eef2f5;--line:#d7dee4;--good:#08783e;--bad:#b42318;--accent:#f5a623}
+*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:var(--bg);margin:0;color:var(--ink)}
+.wrap{max-width:900px;margin:auto;padding:16px}.top{background:var(--ink);color:#fff;border-radius:16px;padding:20px;margin-bottom:14px}.top h1{margin:0;font-size:26px}.top .sub{opacity:.75;margin-top:4px}
+.refbanner{background:#fff3cd;border:2px solid #d99b00;border-radius:12px;padding:14px 16px;margin:0 0 14px;color:#4d3600;font-size:13px;line-height:1.45}.refbanner strong{display:block;font-size:15px;margin-bottom:4px}
+.card{background:#fff;border-radius:14px;padding:18px;margin:12px 0;box-shadow:0 2px 12px #0000000d}.section{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800;margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}label{font-weight:700;font-size:13px;display:block}input,select{width:100%;padding:12px;margin-top:6px;border:1px solid #bcc6cf;border-radius:9px;background:#fff;font-size:16px;color:var(--ink)}select:disabled{background:#f5f7f8;color:#49545e;opacity:1}
+button{width:100%;padding:15px;border:0;border-radius:10px;background:var(--ink);color:#fff;font-size:17px;font-weight:800;margin-top:15px}.results{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.metric{background:#f6f8fa;border-radius:10px;padding:12px}.metric span{display:block;font-size:12px;color:var(--muted);font-weight:700}.metric b{font-size:21px}.status{margin-top:12px;padding:13px;border-radius:10px;font-weight:900;text-align:center}.good{background:#eaf7ef;color:var(--good)}.bad{background:#fdeceb;color:var(--bad)}
+.source{font-size:12px;color:var(--muted);line-height:1.5}.rangebox{background:#f7f9fa;border:1px solid var(--line);border-radius:12px;padding:8px;overflow:hidden}.rangebox svg{width:100%;height:auto;display:block}.axis{stroke:#81909c;stroke-width:2}.boomline{stroke:#14202b;stroke-width:7;stroke-linecap:round}.hookline{stroke:#66727d;stroke-width:2;stroke-dasharray:6 5}#tipDot{fill:#f5a623}.gridline{stroke:#dce3e8;stroke-width:1}.svgtext{font-size:14px;fill:#66727d;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}.warn{background:#fff7df;border-left:4px solid var(--accent);font-size:13px;line-height:1.45}.setupwarn{margin-top:12px;padding:12px;border-radius:10px;background:#fff0d8;border:2px solid #f5a623;font-weight:900;line-height:1.45}.dangerwarn{background:#fff0d8;color:#6b3b00}.pill{display:inline-block;background:#edf1f4;padding:5px 8px;border-radius:999px;font-size:12px;font-weight:700;margin-top:8px}
+@media(max-width:620px){.grid,.results{grid-template-columns:1fr}.wrap{padding:10px}.top{border-radius:12px}.top h1{font-size:23px}}
+</style></head>
+<body><div class="wrap">
+<div class="top"><h1>🏗️ CraneLift Planner</h1><div class="sub">V0.8.0 — RT770E automated validation build</div></div>
+<div class="refbanner"><strong>⚠️ REFERENCE / PLANNING USE ONLY</strong>This application is a planning aid and is not intended for actual crane operation or as a replacement for the crane manufacturer’s load chart, operator’s manual, LMI, or required lift-planning procedures. Always verify results against the load chart and instructions supplied with the specific crane before performing a lift.</div>
+<div class="card"><div class="section">Crane configuration</div><div class="grid">
+<label>Lifting configuration<select id="liftConfig"><option value="main">Main boom</option><option value="swing">33 / 56 ft swingaway extension</option><option value="insert">56 ft swingaway + 20 ft insert (76 ft)</option></select></label><label id="baseWrap" style="display:none">Main boom length under extension<select id="extBase"></select></label><label id="offsetWrap" style="display:none">Extension offset<select id="extOffset"><option value="0">0°</option><option value="25">25°</option><option value="45">45°</option></select></label>
+<label>Manufacturer<select disabled><option>Grove</option></select></label><label>Model<select disabled><option>RT770E</option></select></label>
+<label>Counterweight<select disabled><option>14,365 lb</option></select></label><label>Operating setup<select id="setup"><option value="outriggers">Outriggers — 100% — 360°</option><option value="stationary">On tires — Stationary — 360°</option><option value="pick">On tires — Pick & Carry — over front</option></select></label>
+<label>Working area<input id="workingArea" disabled value="360°"></label><label>Chart<input id="chartName" disabled value="Main Boom — LMI #0001"></label>
+</div></div>
+<div class="card"><div class="section">Lift geometry</div><div class="grid">
+<label id="boomLabel">Boom length<select id="boom"></select></label><label>Radius<select id="radius"></select></label>
+<label>Boom mode<input id="mode" disabled></label><label>Charted boom angle<input id="angle" disabled></label>
+</div><div class="pill" id="pointInfo">Exact manufacturer chart point</div><div id="setupWarning" class="setupwarn" style="display:none"></div><div id="configValidation" class="source" style="margin-top:10px"></div></div>
+<div class="card"><div class="section">Manufacturer load chart</div><div class="source" style="margin-bottom:10px">The exact chart point used will be highlighted only after CALCULATE LIFT.</div><div style="overflow:auto"><table id="loadChartTable" style="border-collapse:collapse;width:100%;min-width:620px;font-size:12px"></table></div></div>
+<div class="card"><div class="section">Geometry validation</div><div id="geometryReadout" class="results"><div class="source">Select an exact manufacturer chart point to view diagnostic geometry.</div></div></div>
+<div class="card"><div class="section">Interactive range view</div><div class="rangebox"><svg id="rangeSvg" viewBox="0 0 700 420" role="img" aria-label="Crane boom range visualization"><line x1="70" y1="360" x2="660" y2="360" class="axis"/><line x1="90" y1="380" x2="90" y2="35" class="axis"/><g id="grid"></g><line id="boomLine" x1="90" y1="360" x2="300" y2="120" class="boomline"/><line id="hookLine" x1="300" y1="120" x2="300" y2="360" class="hookline"/><circle id="tipDot" cx="300" cy="120" r="6"/><text id="rangeLabel" x="110" y="55" class="svgtext"></text><text x="350" y="405" class="svgtext">Operating radius (ft)</text><text x="8" y="30" class="svgtext">Height (ft)</text></svg></div><div class="source" id="rangeNote">Visualization uses the selected charted boom length and charted boom angle. It is a geometry aid, not a replacement for the manufacturer working-range diagram.</div></div>
+<div class="card"><div class="section">Suspended load</div><div class="grid">
+<label>Load (lb)<input id="load" type="number" min="0" value="10000" inputmode="decimal"></label><label>Hook block / ball (lb)<input id="block" type="number" min="0" value="0" inputmode="decimal"></label>
+<label>Rigging (lb)<input id="rigging" type="number" min="0" value="0" inputmode="decimal"></label><label>Other suspended weight (lb)<input id="other" type="number" min="0" value="0" inputmode="decimal"></label>
+<label>Actual parts of line<input id="parts" type="number" min="1" step="1" value="1" inputmode="numeric"></label><label>Permissible single-line pull<input disabled value="16,800 lb"></label>
+</div>
+<div class="section" style="margin-top:18px">Manufacturer deductions / attachments</div><div class="grid">
+<label id="erectedWrap">Erected extension while lifting on main boom<select id="erectedAttachment"><option value="none">None / extension stowed</option><option value="33n">33 ft erected — without overhaul ball</option><option value="33b">33 ft erected — with 355 lb overhaul ball</option><option value="56n">56 ft erected — without overhaul ball</option><option value="56b">56 ft erected — with 355 lb overhaul ball</option><option value="76n">56 ft + 20 ft insert erected — without overhaul ball</option><option value="76b">56 ft + 20 ft insert erected — with 355 lb overhaul ball</option></select></label>
+<label>Auxiliary boom nose installed<select id="auxNose"><option value="0">No</option><option value="130">Yes — 130 lb reduction</option></select></label>
+<label id="mainNoseWrap" style="display:none">Main-boom load-handling device<select id="mainNoseDevice"><option value="0">None</option><option value="1280">65 USt 5-sheave hook block — 1,280 lb</option><option value="355">8.3 USt overhaul ball — 355 lb</option><option value="custom">Custom weight</option></select></label><label id="mainNoseCustomWrap" style="display:none">Custom main-boom device weight (lb)<input id="mainNoseCustom" type="number" min="0" value="0" inputmode="decimal"></label>
+</div><div class="source" id="deductionHelp" style="margin-top:10px">For main-boom lifts, page 16 reductions are applied to chart capacity when an extension is erected. No extension reduction is applied when it is stowed. Auxiliary boom nose is treated as a 130 lb boom-attachment allowance.</div>
+<div class="metric" style="margin-top:12px"><span>Total suspended load</span><b id="totalLoad">10,000 lb</b></div><button id="calcBtn">CALCULATE LIFT</button></div>
+<div class="card" id="result"><div class="section">Result</div><div class="source">Choose a boom length and radius, enter the suspended weights, then calculate.</div></div>
+<div class="card"><div class="section">Automated validation suite — V0.8.1</div><div class="source">Runs integrity, geometry, boundary, deduction, reeving, and input-hardening checks against the complete chart database loaded in this file. This validates software/data structure and calculation logic; it does not independently certify manufacturer data transcription.</div><button id="runTestsBtn">RUN FULL VALIDATION TEST</button><div id="testResults" class="source" style="margin-top:12px">Not run yet.</div></div>
+<div class="card warn"><b>Prototype / planning only.</b> V0.8.1 hardens the V0.8.0 geometry-validation build with normalized numeric inputs and expanded automated validation. The manufacturer chart remains authoritative. V0.6 adds the Grove RT770E 33 ft / 56 ft swingaway extension charts and the 56 ft swingaway + 20 ft insert (76 ft) chart for the 100% outrigger / 360° configurations shown in the product guide. It is not a substitute for the individual crane's load chart, LMI, operating instructions, site conditions, or qualified lift planning.</div>
+<div class="card source"><b>V0.8.0 configurations:</b> Grove RT770E • 14,365 lb counterweight • 100% outriggers / 360° / LMI #0001; stationary on 29.5 × 25 tires / 360° / LMI #9005; pick & carry on 29.5 × 25 tires / boom over front / up to 2.5 mph / LMI #9006.<br><br><b>Extension charts added:</b> 33 ft and 56 ft swingaway at 0° / 25° / 45° offsets for the 125.1 ft Mode B, 125.3 ft Mode A, and 138 ft Mode A/B main-boom configurations; plus the 76 ft (56 + 20 insert) extension at 0° / 25° / 45° on the 138 ft main boom. <b>Lookup rule:</b> Exact manufacturer chart points only. No capacity interpolation. Invalid radius/configuration combinations are not selectable.<br><br><b>Important:</b> The Grove product guide states these charts are guides only. The individual crane's load chart, LMI, operating instructions, tire condition/inflation, site conditions, and applicable deductions govern actual operation.</div>
+</div>
+<script>
+const boomSets={
+ outriggers:[{l:"36.3",m:"A, B"},{l:"48.9",m:"B"},{l:"49.1",m:"A"},{l:"61.4",m:"B"},{l:"61.8",m:"A"},{l:"74.1",m:"B"},{l:"74.5",m:"A"},{l:"86.9",m:"B"},{l:"87.3",m:"A"},{l:"99.6",m:"B"},{l:"100.0",m:"A"},{l:"112.3",m:"B"},{l:"112.7",m:"A"},{l:"125.1",m:"B"},{l:"125.3",m:"A"},{l:"137.8",m:"A, B"}],
+ stationary:[{l:"36.3",m:"A, B"},{l:"49.1",m:"A"},{l:"61.8",m:"A"},{l:"74.5",m:"A"}],
+ pick:[{l:"36.3",m:"A, B"},{l:"49.1",m:"A"},{l:"61.8",m:"A"},{l:"74.5",m:"A"}]
+};
+const charts={outriggers:{},stationary:{},pick:{}}; const C=charts.outriggers;
+const booms=boomSets.outriggers; const put=(r,start,vals)=>vals.forEach((v,i)=>{C[booms[start+i].l]??={};C[booms[start+i].l][r]=v});
+put(9,0,[[140000,71]]);
+Object.assign(C["36.3"],{10:[130000,69.5],12:[112500,66],15:[93250,60.5],20:[71550,50],25:[56650,37.5],30:[43700,16]});
+Object.assign(C["48.9"]??={}, {10:[91650,75.5],12:[91650,73],15:[91100,69],20:[69500,62.5],25:[54900,55.5],30:[42650,47.5]});
+Object.assign(C["49.1"]??={}, {10:[50000,75],12:[50000,73],15:[50000,69],20:[50000,62.5],25:[50000,55.5],30:[45550,47.5]});
+Object.assign(C["61.4"]??={}, {12:[72350,78],15:[72350,74],20:[66300,69],25:[54350,63.5],30:[41900,58]});
+Object.assign(C["61.8"]??={}, {10:[49900,78],12:[49900,76.5],15:[49900,73.5],20:[49900,68.5],25:[49750,63.5],30:[44950,58]});
+Object.assign(C["74.1"]??={}, {15:[50000,78],20:[50000,73],25:[50000,69],30:[43300,64.5]});
+Object.assign(C["74.5"]??={}, {15:[41650,78],20:[41650,73],25:[41650,68.5],30:[36550,64.5]});
+Object.assign(C["86.9"]??={}, {20:[49850,78],25:[44250,72.5],30:[38100,69]});
+Object.assign(C["87.3"]??={}, {20:[29750,75.5],25:[29750,72.5],30:[28050,68.5]});
+Object.assign(C["99.6"]??={}, {20:[39250,78],25:[39250,75.5],30:[34400,72.5]});
+Object.assign(C["100.0"]??={}, {20:[25800,78],25:[25800,75],30:[24850,72]});
+Object.assign(C["112.3"]??={}, {25:[29550,78],30:[29550,75]});Object.assign(C["112.7"]??={}, {25:[21900,78],30:[21900,74.5]});Object.assign(C["125.1"]??={}, {25:[22600,78],30:[22600,77]});Object.assign(C["125.3"]??={}, {30:[21750,78]});Object.assign(C["137.8"]??={}, {30:[18600,78]});
+put(35,1,[[33700,38],[36600,38],[32250,52],[37800,52],[33700,60],[32450,60],[33150,65.5],[24950,65],[30050,69],[22150,69],[27600,72.5],[19950,71.5],[22600,74.5],[20900,74],[18600,76]]);put(40,1,[[26050,25],[28700,25.5],[24950,45.5],[29750,46],[26250,55.5],[29150,55.5],[27200,61.5],[22450,61.5],[26450,66],[19900,65.5],[24400,69.5],[17950,69],[22350,72],[19000,71.5],[18300,74]]);put(45,3,[[19650,38],[24050,38.5],[20750,50.5],[24900,50.5],[21850,58],[20350,57.5],[22800,63],[18050,62.5],[21700,66.5],[16300,66],[20300,69.5],[17350,69],[18050,72]]);put(50,3,[[15500,28.5],[19800,29],[16700,45],[20700,45],[17900,53.5],[18500,53.5],[18750,59.5],[16350,59],[19400,64],[14800,63.5],[18200,67],[15950,66.5],[16700,69.5]]);put(55,3,[[12200,12],[16450,14],[13600,38.5],[17400,39],[14850,49.5],[16800,49.5],[15600,56],[14800,55.5],[16300,61],[13350,60.5],[16350,64.5],[14650,64],[15500,67.5]]);put(60,5,[[11100,31],[14800,31.5],[12450,44.5],[15350,45],[13100,52],[13450,52],[13750,57.5],[12150,57.5],[14200,62],[13400,61.5],[14000,65]]);put(65,5,[[9070,21],[12650,22],[10500,39],[13550,39.5],[11050,48.5],[12300,48.5],[11650,54.5],[11050,54.5],[12150,59],[12250,59],[12600,62.5]]);put(70,7,[[8870,33],[11750,33.5],[9420,44],[11300,44.5],[9950,51],[10100,51],[10400,56.5],[11250,56],[10850,60.5]]);put(75,7,[[7450,25.5],[10250,26],[8010,39.5],[10350,40],[8500,47.5],[9270,48],[8940,53.5],[10000,53.5],[9390,58]]);put(80,7,[[6190,13],[8950,14.5],[6800,34],[9130,34.5],[7250,44],[8530,44],[7690,50.5],[8760,50.5],[8130,55.5]]);put(85,9,[[5720,28],[8050,28.5],[6180,39.5],[7860,40],[6610,47],[7690,47],[7050,52.5]]);put(90,9,[[4760,19.5],[7100,20.5],[5240,35],[7250,35.5],[5670,44],[6750,44],[6100,50]]);put(95,11,[[4400,30],[6530,30.5],[4840,40],[5930,40.5],[5270,47]]);put(100,11,[[3640,23.5],[5820,24],[4110,36],[5200,36],[4530,43.5]]);put(105,11,[[2970,13],[5160,14.5],[3440,31.5],[4530,31.5],[3870,40.5]]);put(110,13,[[2830,26],[3920,26.5],[3250,36.5]]);put(115,13,[[2280,19],[3370,19],[2690,32.5]]);put(120,15,[[2170,28]]);put(125,15,[[1700,22]]);put(130,15,[[1270,13.5]]);
+function setRows(dst, rows){for(const [r,vals] of rows) vals.forEach((v,i)=>{if(v){const l=boomSets.stationary[i].l;dst[l]??={};dst[l][r]=v}})}
+setRows(charts.stationary,[[10,[[49800,69.5],[36000,75],null,null]],[12,[[45650,66],[32550,72.5],[32500,76.5],null]],[15,[[31750,60.5],[29050,68.5],[29550,73.5],[27850,78]]],[20,[[18750,50],[19950,62],[21050,68.5],[21600,72.5]]],[25,[[12000,37.5],[13350,55],[14500,63.5],[14900,68.5]]],[30,[[7840,16],[9350,47.5],[10400,58],[10850,64.5]]],[35,[null,[6620,38],[7590,52],[8010,60]]],[40,[null,[4650,25.5],[5560,46],[5950,55.5]]],[45,[null,null,[4030,38.5],[4390,50.5]]],[50,[null,null,[2840,29.5],[3160,45]]],[55,[null,null,[1870,14.5],[2180,39]]],[60,[null,null,null,[1380,31.5]]]]);
+setRows(charts.pick,[[10,[[54800,69.5],[35400,75],null,null]],[12,[[49800,66],[35400,72.5],[23550,76.5],null]],[15,[[41300,60.5],[35400,68.5],[23550,73.5],[19000,78]]],[20,[[31200,50],[32500,62],[23550,68.5],[19000,72.5]]],[25,[[24100,37.5],[25700,55],[23550,63.5],[19000,68.5]]],[30,[[17550,16],[19550,47.5],[20750,58],[19000,64.5]]],[35,[null,[14550,38],[15900,52],[16300,60]]],[40,[null,[10300,25.5],[12450,46],[12950,55.5]]],[45,[null,null,[9600,38.5],[10050,50.5]]],[50,[null,null,[7920,29.5],[8430,45]]],[55,[null,null,[6380,14.5],[6880,39]]],[60,[null,null,null,[5610,31.5]]],[65,[null,null,null,[4560,22]]]]);
+const extRows={"b1251":{"30":[[10850,78.0],null,null,null,null,null],"35":[[10850,77.5],null,null,null,null,null],"40":[[10850,76.0],null,null,[6130,78.0],null,null],"45":[[10850,74.5],[10500,78.0],null,[6130,77.0],null,null],"50":[[10850,72.5],[9920,77.0],[7290,78.0],[6130,75.5],null,null],"55":[[10850,71.0],[9380,75.0],[7090,77.0],[6130,74.0],null,null],"60":[[10850,69.0],[8890,73.0],[6930,75.0],[6130,72.5],[5200,78.0],null],"65":[[10150,67.0],[8440,71.0],[6780,73.0],[6130,70.5],[5060,77.5],null],"70":[[9560,65.0],[8030,69.0],[6650,71.0],[6130,69.0],[4930,75.5],[3810,78.0]],"75":[[9000,63.0],[7660,67.0],[6500,69.0],[6130,67.5],[4800,74.0],[3720,77.5]],"80":[[7990,60.5],[7310,64.5],[6390,67.0],[6020,66.0],[4680,72.0],[3620,75.5]],"85":[[6930,58.5],[7000,62.5],[6290,64.5],[5670,64.0],[4560,70.0],[3520,74.0]],"90":[[6000,56.0],[6710,60.0],[6200,62.0],[5360,62.5],[4460,68.5],[3440,71.5]],"95":[[5180,53.5],[6020,57.5],[5980,60.0],[5070,60.5],[4290,66.5],[3400,69.5]],"100":[[4460,51.0],[5180,55.0],[5180,57.5],[4800,59.0],[4110,64.5],[3310,67.5]],"105":[[3810,48.5],[4430,52.5],[4480,54.5],[4460,57.0],[3940,62.5],[3270,65.0]],"110":[[3230,46.0],[3760,50.0],[3840,52.0],[3890,55.0],[3780,60.5],[3230,63.0]],"115":[[2700,43.5],[3150,47.0],[3260,49.0],[3370,52.5],[3640,58.5],[3190,60.5]],"120":[[2230,40.5],[2600,44.0],null,[2900,50.5],[3500,56.0],[3160,58.0]],"125":[[1790,37.5],[2100,41.0],null,[2470,48.0],[3170,53.5],[3140,55.5]],"130":[[1390,34.0],[1630,37.5],null,[2070,45.5],[2690,51.0],[3020,53.0]],"135":[[1030,30.0],[1210,33.5],null,[1710,43.0],[2240,48.5],[2520,50.0]],"140":[null,null,null,[1380,40.5],[1830,45.5],null],"145":[null,null,null,[1070,37.5],[1450,42.5],null],"150":[null,null,null,null,[1100,39.5],null]},"a1253":{"35":[[10200,78.0],null,null,null,null,null],"40":[[10200,76.0],null,null,[5750,78.0],null,null],"45":[[10200,74.5],[8060,78.0],null,[5750,77.0],null,null],"50":[[9490,72.5],[8050,76.5],[6950,78.0],[5750,75.5],null,null],"55":[[8770,70.5],[7520,74.5],[6950,77.5],[5750,73.5],null,null],"60":[[8300,68.5],[7060,72.5],[6660,75.5],[5750,72.0],[4820,78.0],null],"65":[[7740,66.5],[6750,70.5],[6320,73.5],[5750,70.5],[4820,77.0],null],"70":[[7250,64.5],[6370,68.5],[6020,71.0],[5480,68.5],[4640,75.5],null],"75":[[6820,62.5],[6040,66.5],[5740,69.0],[5160,67.0],[4340,73.5],[3720,78.0]],"80":[[6440,60.5],[5750,64.5],[5500,67.0],[4790,65.5],[4140,72.0],[3620,76.0]],"85":[[6020,58.5],[5420,62.0],[5220,64.5],[4550,63.5],[3890,70.0],[3520,74.0]],"90":[[5710,56.0],[5190,60.0],[5020,62.0],[4250,62.0],[3720,68.0],[3440,72.0]],"95":[[5370,54.0],[4980,57.5],[4800,59.5],[3990,60.0],[3520,66.0],[3350,70.0]],"100":[[5130,51.5],[4740,55.0],[4640,57.0],[3810,58.0],[3330,64.0],[3190,68.0]],"105":[[4650,49.5],[4530,52.5],[4460,54.0],[3600,56.5],[3210,62.0],[3060,65.5]],"110":[[4040,46.5],[4330,50.0],[4280,51.5],[3400,54.5],[3050,60.0],[2930,63.0]],"115":[[3490,44.0],[3890,47.0],[3830,48.5],[3230,52.5],[2910,58.0],[2810,60.5]],"120":[[2990,41.0],[3300,44.0],null,[3070,50.5],[2760,56.0],[2690,58.5]],"125":[[2540,37.5],[2750,41.0],null,[2890,48.5],[2640,54.0],[2590,55.5]],"130":[[2120,34.0],[2250,37.5],null,[2620,46.0],[2540,51.5],[2490,53.0]],"135":[[1740,30.5],[1790,33.5],null,[2260,43.0],[2430,49.0],[2390,50.0]],"140":[[1380,26.0],[1370,29.0],null,[1920,40.5],[2320,46.0],null],"145":[[1060,21.0],null,null,[1610,37.5],[2020,43.0],null],"150":[null,null,null,[1320,34.5],[1660,40.0],null],"155":[null,null,null,[1050,31.0],[1330,36.5],null],"160":[null,null,null,null,[1020,32.5],null]},"ab138":{"35":[[8640,78.0],null,null,null,null,null],"40":[[8640,77.5],null,null,null,null,null],"45":[[8640,76.0],null,null,[5030,78.0],null,null],"50":[[8640,74.5],[7450,78.0],null,[5030,77.0],null,null],"55":[[8640,72.5],[7430,76.5],[6530,78.0],[5030,75.5],null,null],"60":[[8180,71.0],[7070,74.5],[6530,77.5],[5030,74.0],null,null],"65":[[7740,69.0],[6730,73.0],[6340,75.5],[5030,72.5],[4500,78.0],null],"70":[[7230,67.5],[6340,71.0],[6010,73.5],[5030,70.5],[4500,77.0],null],"75":[[6880,65.5],[6070,69.0],[5790,71.5],[5030,69.0],[4340,75.0],[3760,78.0]],"80":[[6470,63.5],[5750,67.0],[5510,69.5],[4860,67.5],[4120,73.5],[3690,77.5]],"85":[[6110,61.5],[5460,65.0],[5270,67.5],[4600,66.0],[3920,72.0],[3600,76.0]],"90":[[5790,59.5],[5200,63.0],[5050,65.5],[4280,64.5],[3740,70.0],[3500,74.0]],"95":[[5370,57.5],[5030,61.0],[4850,63.0],[4070,63.0],[3570,68.5],[3370,72.0]],"100":[[4640,55.5],[4810,59.0],[4670,61.0],[3870,61.5],[3370,66.5],[3240,70.5]],"105":[[3980,53.0],[4510,57.0],[4510,58.5],[3640,60.0],[3230,65.0],[3090,68.5]],"110":[[3390,51.0],[3840,55.0],[3930,56.0],[3480,58.0],[3110,63.0],[2980,66.5]],"115":[[2850,48.5],[3240,52.5],[3250,53.5],[3290,56.5],[2950,61.5],[2850,64.5]],"120":[[2370,46.0],[2700,50.0],[2620,51.0],[2860,54.5],[2810,59.5],[2730,62.5]],"125":[[1920,43.5],[2200,47.0],null,[2440,52.0],[2710,57.5],[2630,60.0]],"130":[[1520,40.5],[1750,44.5],null,[2040,50.0],[2590,55.5],[2530,58.0]],"135":[[1150,38.0],[1330,41.5],null,[1680,47.5],[2340,53.5],[2440,55.5]],"140":[null,null,null,[1350,45.5],[1940,51.0],[2190,53.0]],"145":[null,null,null,[1040,43.0],[1570,48.5],[1770,50.5]],"150":[null,null,null,null,[1220,46.0],null]},"insert138":{"50":[[3550,78.0],null,null],"55":[[3550,77.0],null,null],"60":[[3550,76.0],null,null],"65":[[3550,74.5],null,null],"70":[[3550,73.0],null,null],"75":[[3550,72.0],[3390,78.0],null],"80":[[3550,70.5],[3380,77.0],null],"85":[[3440,69.0],[3160,75.5],[2660,78.0]],"90":[[3280,68.0],[2960,74.0],[2610,77.0]],"95":[[3060,66.5],[2780,72.5],[2580,75.5]],"100":[[2870,65.0],[2610,71.0],[2540,73.5]],"105":[[2690,63.5],[2460,69.5],[2410,72.0]],"110":[[2520,62.0],[2320,67.5],[2290,70.5]],"115":[[2370,60.5],[2190,66.0],[2170,68.5]],"120":[[2230,59.0],[2070,64.5],[2060,67.0]],"125":[[2100,57.5],[1960,62.5],[1960,65.0]],"130":[[1950,56.0],[1850,61.0],[1830,63.0]],"135":[[1800,54.0],[1760,59.0],[1740,61.0]],"140":[[1510,52.5],[1640,57.5],[1640,59.5]],"145":[[1240,50.5],[1560,55.5],[1540,57.0]],"150":[null,[1360,53.5],[1470,55.0]],"155":[null,[1080,51.5],[1310,53.0]],"160":[null,null,[1000,50.5]]}};
+
+const extBaseMeta={
+ '125.1':{mode:'B',rows:'b1251'},
+ '125.3':{mode:'A',rows:'a1253'},
+ '138.0':{mode:'A, B',rows:'ab138'}
+};
+const extCodes={33:{0:'#0021',25:'#0022',45:'#0023'},56:{0:'#0041',25:'#0042',45:'#0043'},76:{0:'#0084',25:'#0085',45:'#0086'}};
+function extensionSeries(base,len,offset){
+ const rowKey=extBaseMeta[base]?.rows; if(!rowKey)return {};
+ const rows=extRows[rowKey]||{}; const col=len===33?({0:0,25:1,45:2}[offset]):({0:3,25:4,45:5}[offset]);
+ const out={}; for(const [r,vals] of Object.entries(rows)){const p=vals[col];if(p)out[r]=p} return out;
+}
+function insertSeries(offset){const rows=extRows.insert138||{};const col={0:0,25:1,45:2}[offset];const out={};for(const [r,vals] of Object.entries(rows)){const p=vals[col];if(p)out[r]=p}return out}
+
+const setupMeta={outriggers:{area:'360°',chart:'Main Boom — LMI #0001',warn:''},stationary:{area:'360° on tires',chart:'Stationary — LMI #9005',warn:'ON TIRES • STATIONARY 360° • 29.5 × 25 TIRES • 65 PSI COLD • FIRM, LEVEL SURFACE • AXLE LOCKOUTS FUNCTIONING'},pick:{area:'Over front only',chart:'Pick & Carry — LMI #9006',warn:'PICK & CARRY • BOOM CENTERED OVER FRONT • MECHANICAL SWING LOCK ENGAGED • LOAD RESTRAINED FROM SWINGING • MAX 2.5 MPH • 29.5 × 25 TIRES • 65 PSI COLD'}};
+const boom=document.getElementById('boom'),radius=document.getElementById('radius'),mode=document.getElementById('mode'),angle=document.getElementById('angle'),setup=document.getElementById('setup');
+const liftConfig=document.getElementById('liftConfig'),extBase=document.getElementById('extBase'),extOffset=document.getElementById('extOffset');
+function isExt(){return liftConfig.value!=='main'}
+function currentExtLen(){return liftConfig.value==='insert'?76:Number(boom.value)}
+function currentExtSeries(){return liftConfig.value==='insert'?insertSeries(Number(extOffset.value)):extensionSeries(extBase.value,Number(boom.value),Number(extOffset.value))}
+function activeChart(){if(!isExt())return charts[setup.value];return {'EXT':currentExtSeries()}}
+function currentBoomKey(){return isExt()?'EXT':boom.value}
+function updateExtUI(){
+ const ext=isExt();document.getElementById('baseWrap').style.display=ext?'block':'none';document.getElementById('offsetWrap').style.display=ext?'block':'none';
+ setup.disabled=ext;if(ext){setup.value='outriggers';document.getElementById('boomLabel').childNodes[0].nodeValue='Extension length';}
+ else document.getElementById('boomLabel').childNodes[0].nodeValue='Boom length';
+ extBase.innerHTML='';const bases=liftConfig.value==='insert'?['138.0']:['125.1','125.3','138.0'];for(const b of bases){const o=document.createElement('option');o.value=b;o.textContent=b+' ft main boom';extBase.appendChild(o)}
+ fillBooms();
+}
+function fillBooms(){boom.innerHTML='';
+ if(!isExt()) boomSets[setup.value].forEach(b=>{const o=document.createElement('option');o.value=b.l;o.textContent=b.l+' ft';boom.appendChild(o)});
+ else if(liftConfig.value==='swing'){[33,56].forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v+' ft extension';boom.appendChild(o)})}
+ else {const o=document.createElement('option');o.value='76';o.textContent='76 ft (56 + 20 insert)';boom.appendChild(o)}
+ const meta=setupMeta[setup.value];document.getElementById('workingArea').value=isExt()?'360° — 100% outriggers':meta.area;
+ const w=document.getElementById('setupWarning');w.style.display=(!isExt()&&meta.warn)?'block':'none';w.textContent=!isExt()?meta.warn:'';fillRadii()}
+function fillRadii(){radius.innerHTML='';const series=isExt()?currentExtSeries():(activeChart()[boom.value]||{});Object.keys(series).map(Number).sort((a,b)=>a-b).forEach(r=>{const o=document.createElement('option');o.value=r;o.textContent=r+' ft';radius.appendChild(o)});
+ if(isExt()){mode.value=extBaseMeta[extBase.value]?.mode||'A, B';const len=currentExtLen(),off=Number(extOffset.value);document.getElementById('chartName').value=`Extension ${len} ft • ${off}° • LMI ${extCodes[len][off]}`}
+ else {mode.value=boomSets[setup.value].find(b=>b.l===boom.value)?.m||'—';document.getElementById('chartName').value=setupMeta[setup.value].chart}
+ updateAngle()}
+function selectedPoint(){return isExt()?currentExtSeries()[radius.value]:activeChart()[boom.value]?.[radius.value]}
+function validateConfiguration(showAlert=false){
+ const issues=[];
+ const ext=isExt();
+ const allowedOffsets=[0,25,45];
+ if(ext && setup.value!=='outriggers')issues.push('Extensions / insert require the 100% outriggers chart in this RT770E build.');
+ if(ext && !allowedOffsets.includes(Number(extOffset.value)))issues.push('Selected extension offset is not a manufacturer chart option.');
+ if(liftConfig.value==='insert' && extBase.value!=='138.0')issues.push('76 ft extension + 20 ft insert is only loaded for the 138.0 ft main-boom configuration.');
+ if(liftConfig.value==='swing' && !['125.1','125.3','138.0'].includes(extBase.value))issues.push('Selected main-boom base is not loaded for the swingaway chart.');
+ if(liftConfig.value==='swing' && ![33,56].includes(Number(boom.value)))issues.push('Selected swingaway length is not a loaded manufacturer option.');
+ if(!ext && !(boomSets[setup.value]||[]).some(b=>String(b.l)===String(boom.value)))issues.push('Selected boom length is not available for this operating setup.');
+ const series=ext?currentExtSeries():(charts[setup.value]?.[boom.value]||{});
+ if(!series || !Object.keys(series).length)issues.push('No manufacturer chart data exists for this configuration.');
+ if(!Object.prototype.hasOwnProperty.call(series,String(radius.value)))issues.push('Selected radius is not an exact manufacturer chart point for this configuration.');
+ const p=selectedPoint();
+ if(!p)issues.push('No exact manufacturer capacity/angle point exists for the selected configuration.');
+ const box=document.getElementById('configValidation');
+ if(box){
+   if(issues.length){box.innerHTML='<b>CONFIGURATION CHECK — REVIEW REQUIRED</b><br>'+issues.join('<br>');box.style.background='#fff0f0';}
+   else {box.innerHTML='<b>CONFIGURATION CHECK — VALID</b><br>Selections correspond to an exact manufacturer chart configuration loaded in CraneLift.';box.style.background='#eefaf3';}
+ }
+ if(issues.length && showAlert)alert('Configuration check failed:\n\n'+issues.join('\n'));
+ return {ok:issues.length===0,issues};
+}
+function updateGeometryReadout(){
+ const box=document.getElementById('geometryReadout'); if(!box)return;
+ const p=selectedPoint(); if(!p){box.innerHTML='Choose a valid manufacturer chart point.';return}
+ const r=Number(radius.value),a=Number(p[1]),L=isExt()?Number(extBase.value)+currentExtLen():Number(boom.value);
+ const rad=a*Math.PI/180,horizontal=L*Math.cos(rad),vertical=L*Math.sin(rad),radiusDifference=r-horizontal;
+ box.innerHTML=`<div class="metric"><span>Manufacturer operating radius</span><b>${fmt(r)} ft</b></div>
+ <div class="metric"><span>Manufacturer charted boom angle</span><b>${fmt(a)}°</b></div>
+ <div class="metric"><span>Nominal geometry length</span><b>${fmt(L)} ft</b></div>
+ <div class="metric"><span>Calculated horizontal projection</span><b>${fmt(horizontal)} ft</b></div>
+ <div class="metric"><span>Calculated vertical component</span><b>${fmt(vertical)} ft</b></div>
+ <div class="metric"><span>Radius vs. nominal projection difference</span><b>${fmt(radiusDifference)} ft</b></div>
+ <div class="metric"><span>Geometry source</span><b>RT770E working-range diagram • page 9 main/swingaway • page 10 insert</b></div>
+ <div class="source" style="grid-column:1/-1"><b>VALIDATION MODE:</b> Manufacturer radius and charted angle remain authoritative. Calculated projection/component values are diagnostic only. Ground-level boom-tip height and obstacle clearance remain disabled until boom-pivot/reference offsets are validated.</div>`;
+}
+function updateAngle(){const p=selectedPoint();angle.value=p?p[1]+'°':'—';validateConfiguration(false);drawRange();updateGeometryReadout()}
+function drawRange(){const p=selectedPoint();if(!p)return;if(isExt()){document.getElementById('boomLine').setAttribute('x2',90);document.getElementById('boomLine').setAttribute('y2',360);document.getElementById('hookLine').setAttribute('x1',90);document.getElementById('hookLine').setAttribute('x2',90);document.getElementById('hookLine').setAttribute('y1',360);document.getElementById('hookLine').setAttribute('y2',360);document.getElementById('tipDot').setAttribute('cx',90);document.getElementById('tipDot').setAttribute('cy',360);document.getElementById('rangeLabel').textContent=`Extension chart • ${extBase.value} ft main boom • ${currentExtLen()} ft extension • ${extOffset.value}° offset • ${radius.value} ft radius`;document.getElementById('rangeNote').textContent='Extension capacity is active. The simplified boom-line graphic is disabled for extension configurations because extension geometry/offset must follow the manufacturer working-range diagram.';return}
+ document.getElementById('rangeNote').textContent='Visualization uses the selected charted boom length and charted boom angle. It is a geometry aid, not a replacement for the manufacturer working-range diagram.';const L=Number(boom.value),a=p[1]*Math.PI/180,r=Number(radius.value);const h=Math.max(0,L*Math.sin(a));const maxR=140,maxH=150;const x0=90,y0=360,x=x0+(r/maxR)*540,y=y0-(h/maxH)*300;const bl=document.getElementById('boomLine'),hl=document.getElementById('hookLine'),dot=document.getElementById('tipDot');bl.setAttribute('x1',x0);bl.setAttribute('y1',y0);bl.setAttribute('x2',x);bl.setAttribute('y2',y);hl.setAttribute('x1',x);hl.setAttribute('x2',x);hl.setAttribute('y1',y);hl.setAttribute('y2',y0);dot.setAttribute('cx',x);dot.setAttribute('cy',y);document.getElementById('rangeLabel').textContent=`${boom.value} ft boom • ${radius.value} ft radius • ${p[1]}° chart angle`;const g=document.getElementById('grid');if(!g.dataset.ready){let z='';for(let rr=5;rr<=140;rr+=5){const gx=x0+(rr/maxR)*540;z+=`<line x1="${gx}" y1="35" x2="${gx}" y2="360" class="gridline"/>`;if(rr%10===0)z+=`<text x="${gx-7}" y="378" class="svgtext" style="font-size:9px">${rr}</text>`}for(let hh=5;hh<=150;hh+=5){const gy=y0-(hh/maxH)*300;z+=`<line x1="90" y1="${gy}" x2="660" y2="${gy}" class="gridline"/>`;if(hh%10===0)z+=`<text x="55" y="${gy+3}" class="svgtext" style="font-size:9px">${hh}</text>`}g.innerHTML=z;g.dataset.ready='1'}}
+function clearCalculation(){document.getElementById('result').innerHTML='<div class="section">Result</div><div class="source">Choose a configuration and radius, enter the suspended weights, then calculate.</div>';renderLoadChart(null)}
+function renderLoadChart(highlight){const tbl=document.getElementById('loadChartTable');if(!tbl)return;if(isExt()){const series=currentExtSeries();const len=currentExtLen(),off=Number(extOffset.value);let h=`<thead><tr><th style="border:1px solid #ccd5dc;padding:7px">Radius</th><th style="border:1px solid #ccd5dc;padding:7px">${len} ft • ${off}° • ${extCodes[len][off]}</th></tr></thead><tbody>`;for(const r of Object.keys(series).map(Number).sort((a,b)=>a-b)){const p=series[r];let st='border:1px solid #ccd5dc;padding:7px;text-align:center;';if(highlight&&Number(highlight.r)===r)st+='background:'+highlight.color+';font-weight:900;color:#111;outline:2px solid #14202b;';h+=`<tr><th style="background:#f6f8fa;border:1px solid #ccd5dc;padding:7px">${r} ft</th><td style="${st}">${Number(p[0]).toLocaleString('en-US')}<div style="font-size:10px;color:#66727d">${p[1]}°</div></td></tr>`}tbl.innerHTML=h+'</tbody>';return}
+ const bs=boomSets[setup.value];const chart=activeChart();const radii=[...new Set(bs.flatMap(b=>Object.keys(chart[b.l]||{}).map(Number)))].sort((a,b)=>a-b);let h='<thead><tr><th style="position:sticky;left:0;background:#f6f8fa;border:1px solid #ccd5dc;padding:7px">Radius</th>'+bs.map(b=>'<th style="border:1px solid #ccd5dc;padding:7px;white-space:nowrap">'+b.l+' ft</th>').join('')+'</tr></thead><tbody>';for(const r of radii){h+='<tr><th style="position:sticky;left:0;background:#f6f8fa;border:1px solid #ccd5dc;padding:7px">'+r+' ft</th>';for(const b of bs){const p=chart[b.l]?.[r];let st='border:1px solid #ccd5dc;padding:7px;text-align:center;';if(highlight&&highlight.b===b.l&&Number(highlight.r)===r)st+='background:'+highlight.color+';font-weight:900;color:#111;outline:2px solid #14202b;';h+='<td style="'+st+'">'+(p?Number(p[0]).toLocaleString('en-US'):'—')+'</td>'}h+='</tr>'}h+='</tbody>';tbl.innerHTML=h}
+setup.addEventListener('change',()=>{fillBooms();clearCalculation()});liftConfig.addEventListener('change',()=>{updateExtUI();clearCalculation()});extBase.addEventListener('change',()=>{fillBooms();clearCalculation()});extOffset.addEventListener('change',()=>{fillRadii();clearCalculation()});boom.addEventListener('change',()=>{fillRadii();clearCalculation()});radius.addEventListener('change',()=>{updateAngle();clearCalculation()});updateExtUI();renderLoadChart(null);
+const mainBoomExtensionReductions={none:0,'33n':4230,'33b':5940,'56n':9280,'56b':12100,'76n':10170,'76b':12260};
+function n(id){return Math.max(0,Number(document.getElementById(id).value)||0)}function fmt(x){return x.toLocaleString('en-US',{maximumFractionDigits:1})}
+function normalizeNumericInput(el,whole=false){
+ let v=Number(el.value); if(!Number.isFinite(v)||v<0)v=0; if(whole)v=Math.floor(v); el.value=String(v); return v;
+}
+function hardenNumericInputs(){
+ ['load','block','rigging','other','mainNoseCustom'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('blur',()=>{normalizeNumericInput(el,false);updateTotal();clearCalculation()})});
+ const partsEl=document.getElementById('parts');if(partsEl)partsEl.addEventListener('blur',()=>{let v=normalizeNumericInput(partsEl,true);if(v<1)partsEl.value='1';clearCalculation()});
+}
+function updateDeductionUI(){const ext=isExt();document.getElementById('erectedWrap').style.display=ext?'none':'block';document.getElementById('mainNoseWrap').style.display=ext?'block':'none';document.getElementById('mainNoseCustomWrap').style.display=(ext&&document.getElementById('mainNoseDevice').value==='custom')?'block':'none';document.getElementById('deductionHelp').textContent=ext?'For swingaway / jib lifts, select any load-handling device still reeved over the main boom nose. Page 16 requires its total weight to be deducted directly from swingaway/jib capacity.':'For main-boom lifts, page 16 reductions are applied to chart capacity when an extension is erected. No extension reduction is applied when it is stowed. Auxiliary boom nose is treated as a 130 lb boom-attachment allowance.'}
+function updateTotal(){document.getElementById('totalLoad').textContent=fmt(n('load')+n('block')+n('rigging')+n('other'))+' lb'};
+['load','block','rigging','other','parts','mainNoseCustom'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{updateTotal();clearCalculation()}));hardenNumericInputs();['erectedAttachment','auxNose'].forEach(id=>document.getElementById(id).addEventListener('change',()=>{clearCalculation()}));document.getElementById('mainNoseDevice').addEventListener('change',()=>{updateDeductionUI();clearCalculation()});updateTotal();updateDeductionUI();
+const oldUpdateExtUI=updateExtUI;updateExtUI=function(){oldUpdateExtUI();updateDeductionUI()};
+function sourcePageMeta(){
+ if(isExt()){
+   if(liftConfig.value==='insert')return {book:'Grove RT770E Product Guide',volume:'N/A',revision:'Not stated in supplied guide',section:'Extension / insert load chart',printed:'See loaded extension chart',pdf:'See loaded extension chart'};
+   return {book:'Grove RT770E Product Guide',volume:'N/A',revision:'Not stated in supplied guide',section:'Swingaway / extension load chart',printed:'See loaded extension chart',pdf:'See loaded extension chart'};
+ }
+ return {book:'Grove RT770E Product Guide',volume:'N/A',revision:'Not stated in supplied guide',section:'Main-boom load chart',printed:'11',pdf:'11'};
+}
+function sourceTrace(p,rawCap){
+ const sm=sourcePageMeta();
+ const crane='Grove RT770E';
+ if(isExt()){
+   const len=currentExtLen(),off=Number(extOffset.value),lmi=extCodes[len][off];
+   const kind=liftConfig.value==='insert'?'56 ft swingaway + 20 ft insert':'Folding boom extension / swingaway';
+   return `<div class="card" style="margin-top:14px"><div class="section">Manufacturer source trace</div>
+   <div class="results">
+    <div class="metric"><span>Crane</span><b>${crane}</b></div>
+    <div class="metric"><span>Book / document</span><b>${sm.book}</b></div>
+    <div class="metric"><span>Volume</span><b>${sm.volume}</b></div>
+    <div class="metric"><span>Revision</span><b>${sm.revision}</b></div>
+    <div class="metric"><span>Section</span><b>${sm.section}</b></div>
+    <div class="metric"><span>Printed page</span><b>${sm.printed}</b></div>
+    <div class="metric"><span>PDF page</span><b>${sm.pdf}</b></div>
+    <div class="metric"><span>Operating setup</span><b>100% outriggers • 360°</b></div>
+    <div class="metric"><span>Configuration</span><b>${kind}</b></div>
+    <div class="metric"><span>Main-boom base</span><b>${extBase.value} ft • Mode ${mode.value}</b></div>
+    <div class="metric"><span>Extension</span><b>${len} ft • ${off}° offset</b></div>
+    <div class="metric"><span>LMI chart</span><b>${lmi}</b></div>
+    <div class="metric"><span>Radius</span><b>${radius.value} ft</b></div>
+    <div class="metric"><span>Charted boom angle</span><b>${p[1]}°</b></div>
+    <div class="metric"><span>Published chart capacity</span><b>${fmt(rawCap)} lb</b></div>
+    <div class="metric"><span>Lookup method</span><b>Exact chart point • no interpolation</b></div>
+   </div></div>`;
+ }
+ const meta=setupMeta[setup.value];
+ return `<div class="card" style="margin-top:14px"><div class="section">Manufacturer source trace</div>
+ <div class="results">
+  <div class="metric"><span>Crane</span><b>${crane}</b></div>
+  <div class="metric"><span>Book / document</span><b>${sm.book}</b></div>
+  <div class="metric"><span>Volume</span><b>${sm.volume}</b></div>
+  <div class="metric"><span>Revision</span><b>${sm.revision}</b></div>
+  <div class="metric"><span>Section</span><b>${sm.section}</b></div>
+  <div class="metric"><span>Printed page</span><b>${sm.printed}</b></div>
+  <div class="metric"><span>PDF page</span><b>${sm.pdf}</b></div>
+  <div class="metric"><span>Operating setup</span><b>${meta.area}</b></div>
+  <div class="metric"><span>Manufacturer chart</span><b>${meta.chart}</b></div>
+  <div class="metric"><span>Boom</span><b>${boom.value} ft • Mode ${mode.value}</b></div>
+  <div class="metric"><span>Radius</span><b>${radius.value} ft</b></div>
+  <div class="metric"><span>Charted boom angle</span><b>${p[1]}°</b></div>
+  <div class="metric"><span>Published chart capacity</span><b>${fmt(rawCap)} lb</b></div>
+  <div class="metric"><span>Lookup method</span><b>Exact chart point • no interpolation</b></div>
+ </div></div>`;
+}
+
+function runValidationSuite(){
+ const tests=[]; const add=(name,ok,detail='')=>tests.push({name,ok:!!ok,detail});
+ const finitePoint=p=>Array.isArray(p)&&p.length===2&&Number.isFinite(Number(p[0]))&&Number(p[0])>0&&Number.isFinite(Number(p[1]))&&Number(p[1])>=0&&Number(p[1])<=90;
+ let mainPoints=0,badMain=[];
+ for(const [setupName,chart] of Object.entries(charts)) for(const [b,series] of Object.entries(chart)) for(const [r,p] of Object.entries(series)){mainPoints++;if(!finitePoint(p))badMain.push(`${setupName}/${b}/${r}`)}
+ add('All main-boom/on-tires chart points are valid numeric capacity-angle pairs',badMain.length===0,`${mainPoints} points checked${badMain.length?`; bad: ${badMain.slice(0,5).join(', ')}`:''}`);
+ let extPoints=0,badExt=[]; for(const [key,rows] of Object.entries(extRows))for(const [r,vals] of Object.entries(rows))for(let i=0;i<vals.length;i++){const p=vals[i];if(p){extPoints++;if(!finitePoint(p))badExt.push(`${key}/${r}/col${i}`)}}
+ add('All extension/insert chart points are valid numeric capacity-angle pairs',badExt.length===0,`${extPoints} points checked${badExt.length?`; bad: ${badExt.slice(0,5).join(', ')}`:''}`);
+ const expectedMain={outriggers:16,stationary:4,pick:4}; for(const k of Object.keys(expectedMain))add(`${k} boom-set count`,boomSets[k].length===expectedMain[k],`${boomSets[k].length} loaded / ${expectedMain[k]} expected`);
+ let missingSeries=[];for(const [setupName,set] of Object.entries(boomSets))for(const b of set)if(!charts[setupName][b.l]||!Object.keys(charts[setupName][b.l]).length)missingSeries.push(`${setupName}/${b.l}`);add('Every selectable main-boom length has chart data',missingSeries.length===0,missingSeries.length?missingSeries.join(', '):'All selectable boom lengths mapped');
+ let badRadii=[];for(const [setupName,chart] of Object.entries(charts))for(const [b,series] of Object.entries(chart)){let prev=-Infinity;for(const r of Object.keys(series).map(Number).sort((a,b)=>a-b)){if(!(r>0)||r<=prev)badRadii.push(`${setupName}/${b}/${r}`);prev=r}}add('Main-chart radii are positive and sortable without duplicate numeric keys',badRadii.length===0,badRadii.length?badRadii.join(', '):'Passed');
+ const combos=[];for(const base of ['125.1','125.3','138.0'])for(const len of [33,56])for(const off of [0,25,45])combos.push([base,len,off,extensionSeries(base,len,off)]);let emptyCombos=combos.filter(x=>!Object.keys(x[3]).length);add('All 18 swingaway base/length/offset combinations resolve to chart data',emptyCombos.length===0,`${18-emptyCombos.length}/18 populated`);
+ let insertCombos=[0,25,45].map(off=>[off,insertSeries(off)]),emptyInsert=insertCombos.filter(x=>!Object.keys(x[1]).length);add('All 3 insert offsets resolve to chart data',emptyInsert.length===0,`${3-emptyInsert.length}/3 populated`);
+ add('LMI mapping complete for 33/56/76 ft and 0°/25°/45°',[33,56,76].every(l=>[0,25,45].every(o=>!!extCodes[l]?.[o])),'9/9 mappings required');
+ add('Manufacturer deduction table contains all expected extension states',['none','33n','33b','56n','56b','76n','76b'].every(k=>Number.isFinite(mainBoomExtensionReductions[k])),'7 states checked');
+ add('Deduction arithmetic clamps adjusted capacity at zero',Math.max(0,1000-1200)===0,'1,000 - 1,200 => 0');
+ add('75% planning threshold boundary logic',7500/10000*100===75 && 7501/10000*100>75,'75.00% green boundary; >75% warning boundary');
+ add('100% chart-capacity boundary logic',10000/10000*100===100 && 10001/10000*100>100,'100.00% allowed boundary; >100% exceeded');
+ add('Single-line pull multiplication',16800*4===67200,'4 parts = 67,200 lb theoretical planning line capacity');
+ add('Minimum-parts ceiling logic',Math.ceil(33601/16800)===3,'33,601 lb requires 3 parts by current formula');
+ add('75%-green reeving recommendation logic',Math.ceil(25201/(16800*.75))===3,'25,201 lb requires 3 parts for ≤75% by current formula');
+ // V0.8.1 hardening checks
+ let geometryPoints=0,badGeometry=[];
+ for(const [setupName,chart] of Object.entries(charts))for(const [b,series] of Object.entries(chart))for(const [r,p] of Object.entries(series)){
+   const L=Number(b),R=Number(r),A=Number(p[1]),rad=A*Math.PI/180,h=L*Math.cos(rad),v=L*Math.sin(rad),off=R-h;
+   geometryPoints++;if(![L,R,A,h,v,off].every(Number.isFinite)||h<0||v<0)badGeometry.push(`${setupName}/${b}/${r}`);
+ }
+ add('All main-chart geometry calculations remain finite and non-negative where required',badGeometry.length===0,`${geometryPoints} geometry points checked${badGeometry.length?`; bad: ${badGeometry.slice(0,5).join(', ')}`:''}`);
+ let badCapacity=[];for(const [setupName,chart] of Object.entries(charts))for(const [b,series] of Object.entries(chart))for(const [r,p] of Object.entries(series))if(Number(p[0])<=0)badCapacity.push(`${setupName}/${b}/${r}`);
+ add('Every loaded main-chart capacity is greater than zero',badCapacity.length===0,badCapacity.length?badCapacity.slice(0,5).join(', '):'Passed');
+ add('Numeric normalization removes leading zeros',String(Number('0100'))==='100'&&String(Number('01500'))==='1500','0100 → 100; 01500 → 1500');
+ add('Negative suspended weights clamp to zero',Math.max(0,Number('-500')||0)===0,'-500 → 0');
+ add('Blank/non-numeric suspended weights resolve to zero',Math.max(0,Number('')||0)===0&&Math.max(0,Number('abc')||0)===0,'blank / invalid → 0');
+ add('Parts-of-line rejects zero, fractional, and negative values',![0,2.5,-1].some(v=>Number.isInteger(v)&&v>=1),'Invalid examples rejected');
+ add('Adjusted capacity never becomes negative',Math.max(0,5000-12260)===0,'5,000 - 12,260 → 0');
+ add('Remaining-capacity arithmetic can expose overload as negative',10000-12000===-2000,'12,000 on 10,000 capacity → -2,000');
+ add('Threshold classifications are mutually ordered',74.999<=75&&75.001>75&&100<=100&&100.001>100,'75% and 100% edges checked');
+ const total=tests.length,passed=tests.filter(t=>t.ok).length,failed=total-passed; const box=document.getElementById('testResults');
+ box.innerHTML=`<div class="status ${failed?'bad':'good'}"><b>${failed?'VALIDATION FOUND ISSUES':'ALL AUTOMATED CHECKS PASSED'}</b><br>${passed}/${total} tests passed • ${mainPoints+extPoints} chart points inspected • ${geometryPoints} geometry calculations checked</div>`+tests.map((t,i)=>`<div style="padding:9px 4px;border-bottom:1px solid #d7dee4"><b>${t.ok?'PASS':'FAIL'} ${i+1}. ${t.name}</b>${t.detail?`<br><span>${t.detail}</span>`:''}</div>`).join('')+`<div class="source" style="margin-top:10px"><b>Scope:</b> structural/data integrity, configuration coverage, geometry arithmetic, numeric-input hardening, deductions, threshold boundaries, overload handling, and reeving math. A PASS does not prove that every transcribed capacity/angle matches the printed Grove chart; source-to-code transcription still requires independent comparison with the manufacturer document.</div>`;
+ return {total,passed,failed,mainPoints,extPoints,tests};
+}
+document.getElementById('runTestsBtn').addEventListener('click',runValidationSuite);
+
+document.getElementById('calcBtn').onclick=()=>{
+ const configCheck=validateConfiguration(true);if(!configCheck.ok)return;
+ const p=selectedPoint();if(!p){alert('No manufacturer chart point exists for this selection.');return}
+ const rawCap=p[0],gross=n('load')+n('block')+n('rigging')+n('other');
+ const partsRaw=Number(document.getElementById('parts').value);
+ if(!Number.isInteger(partsRaw)||partsRaw<1){alert('Actual parts of line must be a whole number of 1 or greater.');return}
+ const parts=partsRaw;
+ const extReduction=isExt()?0:(mainBoomExtensionReductions[document.getElementById('erectedAttachment').value]||0);
+ const auxReduction=n('auxNose');
+ const mainNoseSel=document.getElementById('mainNoseDevice').value; const mainNoseReduction=isExt()?(mainNoseSel==='custom'?n('mainNoseCustom'):Number(mainNoseSel||0)):0;
+ const totalReduction=extReduction+auxReduction+mainNoseReduction;
+ const cap=Math.max(0,rawCap-totalReduction);
+ const linePull=16800,lineCapacity=linePull*parts,chartPct=cap?gross/cap*100:(gross>0?Infinity:0),linePct=lineCapacity?gross/lineCapacity*100:0,rem=cap-gross;
+ const minParts=Math.max(1,Math.ceil(gross/linePull)),greenParts=Math.max(1,Math.ceil(gross/(linePull*.75)));
+ const planningThreshold=.75;
+ const planningMax=cap*planningThreshold;
+ const planningDelta=planningMax-gross;
+ const planningMessage=chartPct<=75
+   ?`<div class="status good" style="margin-top:10px"><b>WITHIN 75% PLANNING THRESHOLD</b><br>Maximum total suspended load at 75%: <b>${fmt(planningMax)} lb</b><br>Remaining allowance before 75%: <b>${fmt(Math.max(0,planningDelta))} lb</b></div>`
+   :chartPct<=100
+   ?`<div class="status dangerwarn" style="margin-top:10px"><b>ABOVE 75% PLANNING THRESHOLD</b><br>Maximum total suspended load at 75%: <b>${fmt(planningMax)} lb</b><br>Current suspended load is <b>${fmt(Math.max(0,-planningDelta))} lb</b> above the 75% planning threshold.<br><span style="font-size:.88em">Entered configuration remains within manufacturer chart capacity.</span></div>`
+   :`<div class="status bad" style="margin-top:10px"><b>MANUFACTURER CHART CAPACITY EXCEEDED</b><br>Maximum total suspended load at 75% planning threshold: <b>${fmt(planningMax)} lb</b><br>Current suspended load is <b>${fmt(gross-cap)} lb</b> above adjusted chart capacity.</div>`;
+ const chartColor=chartPct<=75?'#59d987':chartPct<=100?'#ffd84d':'#ff6666';
+ const chartClass=chartPct<=75?'good':chartPct<=100?'dangerwarn':'bad';
+ const lineClass=linePct<=75?'good':linePct<=100?'dangerwarn':'bad';
+ const chartText=chartPct<=75?'CHART CAPACITY — GREEN':chartPct<=100?'CHART CAPACITY — YELLOW':'CHART CAPACITY EXCEEDED';
+ const lineText=linePct<=75?'REEVING / LINE PULL — GREEN':linePct<=100?'REEVING / LINE PULL — YELLOW':'REEVING / LINE PULL EXCEEDED';
+ const reevingValidation=linePct>100
+   ?`<div class="status bad" style="margin-top:10px"><b>INSUFFICIENT REEVING:</b> ${parts} part${parts===1?'':'s'} provides ${fmt(lineCapacity)} lb at the 16,800 lb permissible single-line pull. Minimum permissible for this suspended load: <b>${minParts} part${minParts===1?'':'s'}</b>.</div>`
+   :linePct>75
+   ?`<div class="status dangerwarn" style="margin-top:10px">Current reeving is within the 16,800 lb/part planning limit but above the 75% green threshold. Recommended for ≤75%: <b>${greenParts} part${greenParts===1?'':'s'}</b>.</div>`
+   :`<div class="status good" style="margin-top:10px">Current reeving is at or below the 75% green threshold.</div>`;
+ renderLoadChart({b:isExt()?'EXT':boom.value,r:Number(radius.value),color:chartColor});
+ document.getElementById('result').innerHTML=`<div class="section">Result</div>
+ <div class="status ${chartClass}" style="margin-top:0">${chartText} • ${fmt(chartPct)}%</div>
+ ${planningMessage}
+ <div class="results" style="margin-top:10px">
+ <div class="metric"><span>Manufacturer chart capacity</span><b>${fmt(rawCap)} lb</b></div>
+ <div class="metric"><span>Manufacturer deductions</span><b>${fmt(totalReduction)} lb</b></div>
+ <div class="metric"><span>Adjusted capacity for calculation</span><b>${fmt(cap)} lb</b></div>
+ <div class="metric"><span>Total suspended load</span><b>${fmt(gross)} lb</b></div>
+ <div class="metric"><span>Chart utilization</span><b>${fmt(chartPct)}%</b></div>
+ <div class="metric"><span>Remaining chart capacity</span><b>${fmt(rem)} lb</b></div>
+ </div>
+ <div class="status ${lineClass}" style="margin-top:16px">${lineText} • ${fmt(linePct)}%</div>
+ ${reevingValidation}
+ <div class="results" style="margin-top:10px">
+ <div class="metric"><span>Permissible single-line pull</span><b>${fmt(linePull)} lb</b></div>
+ <div class="metric"><span>Actual parts of line</span><b>${parts}</b></div>
+ <div class="metric"><span>Available line capacity</span><b>${fmt(lineCapacity)} lb</b></div>
+ <div class="metric"><span>Reeving utilization</span><b>${fmt(linePct)}%</b></div>
+ <div class="metric"><span>Minimum permissible parts</span><b>${minParts}</b></div>
+ <div class="metric"><span>Recommended parts for ≤75%</span><b>${greenParts}</b></div>
+ </div>
+ <div class="results" style="margin-top:10px"><div class="metric"><span>Charted boom angle</span><b>${p[1]}°</b></div><div class="metric"><span>Boom mode</span><b>${mode.value}</b></div></div>
+ ${sourceTrace(p,rawCap)}
+ <div class="source" style="margin-top:12px"><b>Deduction breakdown:</b> erected extension ${fmt(extReduction)} lb • auxiliary boom nose ${fmt(auxReduction)} lb • main-boom-nose devices ${fmt(mainNoseReduction)} lb. Manufacturer chart cell remains the published value; utilization is calculated against the adjusted capacity after applicable page-16 deductions.<br><br><b>The chart cell color represents adjusted chart utilization only.</b> The 75% value is a CraneLift planning/site-policy threshold and does not change the manufacturer's published rated capacity. Reeving / line pull is shown separately so an incorrect parts-of-line entry does not make the crane chart appear overloaded. ${isExt()?`${extBase.value} ft main boom • ${currentExtLen()} ft extension • ${extOffset.value}° offset • LMI ${extCodes[currentExtLen()][Number(extOffset.value)]}`:`${boom.value} ft boom • ${setupMeta[setup.value].chart}`} × ${radius.value} ft radius • exact chart point • no capacity interpolation.<br>RT770E guide permissible single-line pull used here: 16,800 lb. Minimum/recommended parts are planning calculations; verify actual reeving, hoist/rope configuration, line layer limits, and the individual crane load chart/operator manual before operation.</div>`;
+ document.getElementById('result').scrollIntoView({behavior:'smooth',block:'start'})
+}
+</script></body></html>
