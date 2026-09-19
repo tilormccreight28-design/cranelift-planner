@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>CraneLift Planner V0.7.4</title>
+<title>CraneLift Planner V0.8.0</title>
 <style>
 :root{--ink:#14202b;--muted:#66727d;--bg:#eef2f5;--line:#d7dee4;--good:#08783e;--bad:#b42318;--accent:#f5a623}
 *{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:var(--bg);margin:0;color:var(--ink)}
@@ -13,7 +13,7 @@ button{width:100%;padding:15px;border:0;border-radius:10px;background:var(--ink)
 @media(max-width:620px){.grid,.results{grid-template-columns:1fr}.wrap{padding:10px}.top{border-radius:12px}.top h1{font-size:23px}}
 </style></head>
 <body><div class="wrap">
-<div class="top"><h1>🏗️ CraneLift Planner</h1><div class="sub">V0.7.4 — RT770E automatic deductions build</div></div>
+<div class="top"><h1>🏗️ CraneLift Planner</h1><div class="sub">V0.8.0 — RT770E geometry validation build</div></div>
 <div class="refbanner"><strong>⚠️ REFERENCE / PLANNING USE ONLY</strong>This application is a planning aid and is not intended for actual crane operation or as a replacement for the crane manufacturer’s load chart, operator’s manual, LMI, or required lift-planning procedures. Always verify results against the load chart and instructions supplied with the specific crane before performing a lift.</div>
 <div class="card"><div class="section">Crane configuration</div><div class="grid">
 <label>Lifting configuration<select id="liftConfig"><option value="main">Main boom</option><option value="swing">33 / 56 ft swingaway extension</option><option value="insert">56 ft swingaway + 20 ft insert (76 ft)</option></select></label><label id="baseWrap" style="display:none">Main boom length under extension<select id="extBase"></select></label><label id="offsetWrap" style="display:none">Extension offset<select id="extOffset"><option value="0">0°</option><option value="25">25°</option><option value="45">45°</option></select></label>
@@ -25,6 +25,7 @@ button{width:100%;padding:15px;border:0;border-radius:10px;background:var(--ink)
 <label id="boomLabel">Boom length<select id="boom"></select></label><label>Radius<select id="radius"></select></label>
 <label>Boom mode<input id="mode" disabled></label><label>Charted boom angle<input id="angle" disabled></label>
 </div><div class="pill" id="pointInfo">Exact manufacturer chart point</div><div id="setupWarning" class="setupwarn" style="display:none"></div><div id="configValidation" class="source" style="margin-top:10px"></div></div>
+<div class="card"><div class="section">Geometry validation</div><div class="source" style="margin-bottom:10px">Compares the manufacturer charted radius and boom angle with nominal boom-vector geometry. These values are diagnostic only; they do not alter chart capacity or replace the manufacturer working-range diagram.</div><div id="geometryReadout" class="results"></div></div>
 <div class="card"><div class="section">Manufacturer load chart</div><div class="source" style="margin-bottom:10px">The exact chart point used will be highlighted only after CALCULATE LIFT.</div><div style="overflow:auto"><table id="loadChartTable" style="border-collapse:collapse;width:100%;min-width:620px;font-size:12px"></table></div></div>
 <div class="card"><div class="section">Interactive range view</div><div class="rangebox"><svg id="rangeSvg" viewBox="0 0 700 420" role="img" aria-label="Crane boom range visualization"><line x1="70" y1="360" x2="660" y2="360" class="axis"/><line x1="90" y1="380" x2="90" y2="35" class="axis"/><g id="grid"></g><line id="boomLine" x1="90" y1="360" x2="300" y2="120" class="boomline"/><line id="hookLine" x1="300" y1="120" x2="300" y2="360" class="hookline"/><circle id="tipDot" cx="300" cy="120" r="6"/><text id="rangeLabel" x="110" y="55" class="svgtext"></text><text x="350" y="405" class="svgtext">Operating radius (ft)</text><text x="8" y="30" class="svgtext">Height (ft)</text></svg></div><div class="source" id="rangeNote">Visualization uses the selected charted boom length and charted boom angle. It is a geometry aid, not a replacement for the manufacturer working-range diagram.</div></div>
 <div class="card"><div class="section">Suspended load</div><div class="grid">
@@ -39,8 +40,8 @@ button{width:100%;padding:15px;border:0;border-radius:10px;background:var(--ink)
 </div><div class="source" id="deductionHelp" style="margin-top:10px">For main-boom lifts, page 16 reductions are applied to chart capacity when an extension is erected. No extension reduction is applied when it is stowed. Auxiliary boom nose is treated as a 130 lb boom-attachment allowance.</div>
 <div class="metric" style="margin-top:12px"><span>Total suspended load</span><b id="totalLoad">10,000 lb</b></div><button id="calcBtn">CALCULATE LIFT</button></div>
 <div class="card" id="result"><div class="section">Result</div><div class="source">Choose a boom length and radius, enter the suspended weights, then calculate.</div></div>
-<div class="card warn"><b>Prototype / planning only.</b> V0.7.4 keeps the verified V0.6 chart engine intact and adds manufacturer deduction handling from page 16. V0.6 adds the Grove RT770E 33 ft / 56 ft swingaway extension charts and the 56 ft swingaway + 20 ft insert (76 ft) chart for the 100% outrigger / 360° configurations shown in the product guide. It is not a substitute for the individual crane's load chart, LMI, operating instructions, site conditions, or qualified lift planning.</div>
-<div class="card source"><b>V0.7.4 configurations:</b> Grove RT770E • 14,365 lb counterweight • 100% outriggers / 360° / LMI #0001; stationary on 29.5 × 25 tires / 360° / LMI #9005; pick & carry on 29.5 × 25 tires / boom over front / up to 2.5 mph / LMI #9006.<br><br><b>Extension charts added:</b> 33 ft and 56 ft swingaway at 0° / 25° / 45° offsets for the 125.1 ft Mode B, 125.3 ft Mode A, and 138 ft Mode A/B main-boom configurations; plus the 76 ft (56 + 20 insert) extension at 0° / 25° / 45° on the 138 ft main boom. <b>Lookup rule:</b> Exact manufacturer chart points only. No capacity interpolation. Invalid radius/configuration combinations are not selectable.<br><br><b>Important:</b> The Grove product guide states these charts are guides only. The individual crane's load chart, LMI, operating instructions, tire condition/inflation, site conditions, and applicable deductions govern actual operation.</div>
+<div class="card warn"><b>Prototype / planning only.</b> V0.8.0 keeps the existing RT770E chart, deduction, reeving, and source-trace engines intact and adds a diagnostic geometry-validation layer. Manufacturer radius and charted boom angle remain authoritative; geometry calculations do not modify rated capacity. V0.6 adds the Grove RT770E 33 ft / 56 ft swingaway extension charts and the 56 ft swingaway + 20 ft insert (76 ft) chart for the 100% outrigger / 360° configurations shown in the product guide. It is not a substitute for the individual crane's load chart, LMI, operating instructions, site conditions, or qualified lift planning.</div>
+<div class="card source"><b>V0.8.0 configurations:</b> Grove RT770E • 14,365 lb counterweight • 100% outriggers / 360° / LMI #0001; stationary on 29.5 × 25 tires / 360° / LMI #9005; pick & carry on 29.5 × 25 tires / boom over front / up to 2.5 mph / LMI #9006.<br><br><b>Extension charts added:</b> 33 ft and 56 ft swingaway at 0° / 25° / 45° offsets for the 125.1 ft Mode B, 125.3 ft Mode A, and 138 ft Mode A/B main-boom configurations; plus the 76 ft (56 + 20 insert) extension at 0° / 25° / 45° on the 138 ft main boom. <b>Lookup rule:</b> Exact manufacturer chart points only. No capacity interpolation. Invalid radius/configuration combinations are not selectable.<br><br><b>Important:</b> The Grove product guide states these charts are guides only. The individual crane's load chart, LMI, operating instructions, tire condition/inflation, site conditions, and applicable deductions govern actual operation.</div>
 </div>
 <script>
 const boomSets={
@@ -133,17 +134,30 @@ function validateConfiguration(showAlert=false){
 }
 function updateGeometryReadout(){
  const box=document.getElementById('geometryReadout'); if(!box)return;
- const p=selectedPoint(); if(!p){box.innerHTML='Choose a valid manufacturer chart point.';return}
- const r=Number(radius.value),a=Number(p[1]),L=isExt()?Number(extBase.value)+currentExtLen():Number(boom.value);
- const rad=a*Math.PI/180,horizontal=L*Math.cos(rad),vertical=L*Math.sin(rad),radiusDifference=r-horizontal;
+ const p=selectedPoint(); if(!p){box.innerHTML='<div class="source">Choose a valid manufacturer chart point.</div>';return}
+ if(isExt()){
+  box.innerHTML=`<div class="metric"><span>Geometry status</span><b>Extension validation pending</b></div>
+  <div class="metric"><span>Manufacturer radius</span><b>${fmt(Number(radius.value))} ft</b></div>
+  <div class="source" style="grid-column:1/-1"><b>EXTENSION GEOMETRY:</b> Capacity lookup remains active, but vector validation is intentionally disabled for swingaway/insert configurations until the manufacturer extension pivot and offset geometry are modeled from the working-range source.</div>`;return;
+ }
+ const r=Number(radius.value),a=Number(p[1]),L=Number(boom.value);
+ const rad=a*Math.PI/180,horizontal=L*Math.cos(rad),vertical=L*Math.sin(rad),impliedOffset=r-horizontal;
+ const series=charts[setup.value]?.[boom.value]||{};
+ const offsets=Object.entries(series).map(([rr,pp])=>Number(rr)-L*Math.cos(Number(pp[1])*Math.PI/180)).filter(Number.isFinite);
+ const minOff=offsets.length?Math.min(...offsets):NaN,maxOff=offsets.length?Math.max(...offsets):NaN;
+ const avgOff=offsets.length?offsets.reduce((x,y)=>x+y,0)/offsets.length:NaN;
+ const spread=offsets.length?maxOff-minOff:NaN;
  box.innerHTML=`<div class="metric"><span>Manufacturer operating radius</span><b>${fmt(r)} ft</b></div>
  <div class="metric"><span>Manufacturer charted boom angle</span><b>${fmt(a)}°</b></div>
- <div class="metric"><span>Nominal geometry length</span><b>${fmt(L)} ft</b></div>
- <div class="metric"><span>Calculated horizontal projection</span><b>${fmt(horizontal)} ft</b></div>
- <div class="metric"><span>Calculated vertical component</span><b>${fmt(vertical)} ft</b></div>
- <div class="metric"><span>Radius vs. nominal projection difference</span><b>${fmt(radiusDifference)} ft</b></div>
+ <div class="metric"><span>Nominal boom length</span><b>${fmt(L)} ft</b></div>
+ <div class="metric"><span>Boom horizontal component L × cos θ</span><b>${fmt(horizontal)} ft</b></div>
+ <div class="metric"><span>Boom vertical component L × sin θ</span><b>${fmt(vertical)} ft</b></div>
+ <div class="metric"><span>Implied horizontal reference offset</span><b>${fmt(impliedOffset)} ft</b></div>
+ <div class="metric"><span>Same-boom average implied offset</span><b>${fmt(avgOff)} ft</b></div>
+ <div class="metric"><span>Same-boom offset range</span><b>${fmt(minOff)} to ${fmt(maxOff)} ft</b></div>
+ <div class="metric"><span>Same-boom offset spread</span><b>${fmt(spread)} ft</b></div>
  <div class="metric"><span>Geometry source</span><b>RT770E working-range diagram • page 9 main/swingaway • page 10 insert</b></div>
- <div class="source" style="grid-column:1/-1"><b>VALIDATION MODE:</b> Manufacturer radius and charted angle remain authoritative. Calculated projection/component values are diagnostic only. Ground-level boom-tip height and obstacle clearance remain disabled until boom-pivot/reference offsets are validated.</div>`;
+ <div class="source" style="grid-column:1/-1"><b>GEOMETRY VALIDATION MODE:</b> Manufacturer radius and charted boom angle remain authoritative. The implied offset is radius − (boom length × cos angle). Variation across the same boom can reflect chart-angle rounding and/or crane reference geometry. No correction is applied to rated capacity. Ground-level boom-tip height and obstacle clearance remain disabled until the boom-pivot/reference offsets are independently validated.</div>`;
 }
 function updateAngle(){const p=selectedPoint();angle.value=p?p[1]+'°':'—';validateConfiguration(false);drawRange();updateGeometryReadout()}
 function drawRange(){const p=selectedPoint();if(!p)return;if(isExt()){document.getElementById('boomLine').setAttribute('x2',90);document.getElementById('boomLine').setAttribute('y2',360);document.getElementById('hookLine').setAttribute('x1',90);document.getElementById('hookLine').setAttribute('x2',90);document.getElementById('hookLine').setAttribute('y1',360);document.getElementById('hookLine').setAttribute('y2',360);document.getElementById('tipDot').setAttribute('cx',90);document.getElementById('tipDot').setAttribute('cy',360);document.getElementById('rangeLabel').textContent=`Extension chart • ${extBase.value} ft main boom • ${currentExtLen()} ft extension • ${extOffset.value}° offset • ${radius.value} ft radius`;document.getElementById('rangeNote').textContent='Extension capacity is active. The simplified boom-line graphic is disabled for extension configurations because extension geometry/offset must follow the manufacturer working-range diagram.';return}
